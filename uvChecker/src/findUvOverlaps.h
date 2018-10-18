@@ -1,6 +1,7 @@
 #ifndef __FINDUVOVERLAPS2_H__
 #define __FINDUVOVERLAPS2_H__
 
+#include <maya/MCppCompat.h>
 #include <maya/MDagPath.h>
 #include <maya/MPxCommand.h>
 #include <maya/MSelectionList.h>

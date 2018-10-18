@@ -388,10 +388,10 @@ MStatus FindUvOverlaps::redoIt() {
             LineSegment *linePtr = *iter;
             const LineSegment &line = *linePtr;
 
-            path = line.groupId + ".map[" + std::to_string(line.index.first) + "]";
+            path = line.groupId + ".map[" + std::to_string((long long)line.index.first) + "]";
             resultSet.insert(path);
 
-            path = line.groupId + ".map[" + std::to_string(line.index.second) + "]";
+            path = line.groupId + ".map[" + std::to_string((long long)line.index.second) + "]";
             resultSet.insert(path);
         }
     }

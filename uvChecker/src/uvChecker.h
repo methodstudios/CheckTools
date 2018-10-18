@@ -1,6 +1,7 @@
 #ifndef __UVCHECKER_H__
 #define __UVCHECKER_H__
 
+#include <maya/MCppCompat.h>
 #include <maya/MDagPath.h>
 #include <maya/MPxCommand.h>
 #include <maya/MSyntax.h>

@@ -1,6 +1,7 @@
 #ifndef __MESHCHECKER_H__
 #define __MESHCHECKER_H__
 
+#include <maya/MCppCompat.h>
 #include <maya/MDagPath.h>
 #include <maya/MIntArray.h>
 #include <maya/MItMeshEdge.h>
