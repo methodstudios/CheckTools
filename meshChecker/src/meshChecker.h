@@ -9,6 +9,7 @@
 #include <maya/MItMeshVertex.h>
 #include <maya/MPxCommand.h>
 #include <maya/MStringArray.h>
+#include <maya/MSelectionList.h>
 
 #include <string>
 
@@ -34,6 +35,7 @@ public:
     MStatus findCreaseEDges();
     MStatus findZeroLengthEdges();
     MStatus findUnfrozenVertices();
+    MStatus resetUnfrozenVertices();
 
     MStringArray setResultString(std::string componentType);
 
@@ -52,12 +54,14 @@ public:
     };
 
 private:
+    MSelectionList mList;
     MDagPath mDagPath;
     double maxFaceArea;
     MIntArray indexArray;
     unsigned int checkNumber;
     MStringArray resultArray;
     double minEdgeLength;
+    bool edit;
 };
 
 #endif /* defined(__MESHCHECKER_H__) */

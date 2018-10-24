@@ -1,10 +1,10 @@
 //
-//  bentleyOttman.hpp
-//  bentleyOttman
+//  bentleyOttmann.hpp
+//  bentleyOttmann
 //
 
-#ifndef bentleyOttman_hpp
-#define bentleyOttman_hpp
+#ifndef bentleyOttmann_hpp
+#define bentleyOttmann_hpp
 
 #include "event.hpp"
 #include "lineSegment.hpp"
@@ -13,12 +13,12 @@
 #include <string>
 #include <vector>
 
-class BentleyOttman {
+class BentleyOttmann {
 public:
-    BentleyOttman();
-    explicit BentleyOttman(std::vector<LineSegment>& edgeVector);
-    BentleyOttman(std::vector<LineSegment>& edgeVector, std::string& groupId);
-    ~BentleyOttman();
+    BentleyOttmann();
+    explicit BentleyOttmann(std::vector<LineSegment>& edgeVector);
+    BentleyOttmann(std::vector<LineSegment>& edgeVector, std::string& groupId);
+    ~BentleyOttmann();
 
     void check();
     std::vector<LineSegment> result;
@@ -26,7 +26,7 @@ public:
     std::vector<LineSegment> edges;
     std::string groupId;
 
-    BentleyOttman operator+(const BentleyOttman& rhs) const;
+    BentleyOttmann operator+(const BentleyOttmann& rhs) const;
 
 private:
     bool verbose;
@@ -40,4 +40,4 @@ private:
     std::multiset<Event> eventQueue;
 };
 
-#endif /* bentleyOttman_hpp */
+#endif /* bentleyOttmann_hpp */

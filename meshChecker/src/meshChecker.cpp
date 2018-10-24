@@ -6,41 +6,33 @@
 #include <maya/MFnMesh.h>
 #include <maya/MGlobal.h>
 #include <maya/MPlug.h>
-#include <maya/MSelectionList.h>
 #include <maya/MString.h>
 #include <maya/MSyntax.h>
 #include <maya/MUintArray.h>
 
-MeshChecker::MeshChecker()
-{
+MeshChecker::MeshChecker() {
 }
 
-MeshChecker::~MeshChecker()
-{
+MeshChecker::~MeshChecker() {
 }
 
-MStatus MeshChecker::findTriangles()
-{
+MStatus MeshChecker::findTriangles() {
     for (MItMeshPolygon mItPoly(mDagPath); !mItPoly.isDone(); mItPoly.next()) {
-        if (mItPoly.polygonVertexCount() == 3) {
+        if (mItPoly.polygonVertexCount() == 3)
             indexArray.append(mItPoly.index());
-        }
     }
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findNgons()
-{
+MStatus MeshChecker::findNgons() {
     for (MItMeshPolygon mItPoly(mDagPath); !mItPoly.isDone(); mItPoly.next()) {
-        if (mItPoly.polygonVertexCount() >= 5) {
+        if (mItPoly.polygonVertexCount() >= 5)
             indexArray.append(mItPoly.index());
-        }
     }
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findNonManifoldEdges()
-{
+MStatus MeshChecker::findNonManifoldEdges() {
     MStatus status;
     int faceCount;
     for (MItMeshEdge mItEdge(mDagPath); !mItEdge.isDone(); mItEdge.next()) {
@@ -52,18 +44,15 @@ MStatus MeshChecker::findNonManifoldEdges()
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findLaminaFaces()
-{
+MStatus MeshChecker::findLaminaFaces() {
     for (MItMeshPolygon mItPoly(mDagPath); !mItPoly.isDone(); mItPoly.next()) {
-        if (mItPoly.isLamina() == true) {
+        if (mItPoly.isLamina() == true)
             indexArray.append(mItPoly.index());
-        }
     }
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findBiValentFaces()
-{
+MStatus MeshChecker::findBiValentFaces() {
     MIntArray connectedFaces;
     MIntArray connectedEdges;
     for (MItMeshVertex mItVert(mDagPath); !mItVert.isDone(); mItVert.next()) {
@@ -78,31 +67,26 @@ MStatus MeshChecker::findBiValentFaces()
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findZeroAreaFaces(double& maxFaceArea)
-{
+MStatus MeshChecker::findZeroAreaFaces(double &maxFaceArea) {
     double area;
     for (MItMeshPolygon mItPoly(mDagPath); !mItPoly.isDone(); mItPoly.next()) {
         mItPoly.getArea(area);
-        if (area < maxFaceArea) {
+        if (area < maxFaceArea)
             indexArray.append(mItPoly.index());
-        }
     }
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findMeshBorderEdges()
-{
+MStatus MeshChecker::findMeshBorderEdges() {
     for (MItMeshEdge mItEdge(mDagPath); !mItEdge.isDone(); mItEdge.next()) {
         bool isBorder = mItEdge.onBoundary();
-        if (isBorder) {
+        if (isBorder)
             indexArray.append(mItEdge.index());
-        }
     }
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findCreaseEDges()
-{
+MStatus MeshChecker::findCreaseEDges() {
     MFnMesh fnMesh(mDagPath);
     MUintArray edgeIds;
     MDoubleArray creaseData;
@@ -112,27 +96,24 @@ MStatus MeshChecker::findCreaseEDges()
         for (unsigned int i = 0; i < edgeIds.length(); i++) {
             if (creaseData[i] == 0)
                 continue;
-            int edgeId = (int)edgeIds[i];
+            int edgeId = (int) edgeIds[i];
             indexArray.append(edgeId);
         }
     }
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findZeroLengthEdges()
-{
+MStatus MeshChecker::findZeroLengthEdges() {
     double length;
     for (MItMeshEdge mItEdge(mDagPath); !mItEdge.isDone(); mItEdge.next()) {
         mItEdge.getLength(length);
-        if (length < minEdgeLength) {
+        if (length < minEdgeLength)
             indexArray.append(mItEdge.index());
-        }
     }
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::findUnfrozenVertices()
-{
+MStatus MeshChecker::findUnfrozenVertices() {
     // reference
     // https://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfn_attributes.htm
     mDagPath.extendToShape();
@@ -155,16 +136,37 @@ MStatus MeshChecker::findUnfrozenVertices()
             plug_y.getValue(y);
             plug_z.getValue(z);
 
-            float temp = x + y + z;
-            if (temp != 0)
+            if (!(x == 0.0 && y == 0.0 && z == 0.0))
                 indexArray.append(i);
         }
     }
     return MS::kSuccess;
 }
 
-MStringArray MeshChecker::setResultString(std::string componentType)
-{
+MStatus MeshChecker::resetUnfrozenVertices() {
+    MFnDagNode mFnDag(mDagPath);
+    MFnMesh fnMesh(mDagPath);
+
+    MPlug pntsArray = mFnDag.findPlug("pnts");
+
+    unsigned int arraySize = indexArray.length();
+    float x, y, z;
+    for (unsigned int i=0; i<arraySize; i++) {
+        int index = indexArray[i];
+        MPlug compound = pntsArray.elementByLogicalIndex(index);
+        if (compound.isCompound()) {
+            MPlug plug_x = compound.child(0);
+            MPlug plug_y = compound.child(1);
+            MPlug plug_z = compound.child(2);
+            plug_x.setValue(0.0);
+            plug_y.setValue(0.0);
+            plug_z.setValue(0.0);
+        }
+    }
+    return MS::kSuccess;
+}
+
+MStringArray MeshChecker::setResultString(std::string componentType) {
     MString fullpath = mDagPath.fullPathName();
     MStringArray resultStringArray;
     int index;
@@ -187,32 +189,36 @@ MStringArray MeshChecker::setResultString(std::string componentType)
     return resultStringArray;
 }
 
-MSyntax MeshChecker::newSyntax()
-{
+MSyntax MeshChecker::newSyntax() {
     MSyntax syntax;
     syntax.addFlag("-c", "-check", MSyntax::kUnsigned);
     syntax.addFlag("-mfa", "-maxFaceArea", MSyntax::kDouble);
     syntax.addFlag("-mel", "-minEdgeLength", MSyntax::kDouble);
+    syntax.addFlag("-e", "-edit", MSyntax::kBoolean);
     return syntax;
 }
 
-MStatus MeshChecker::doIt(const MArgList& args)
-{
+MStatus MeshChecker::doIt(const MArgList &args) {
+
     MStatus status;
-
-    if (args.length() != 1) {
-        MGlobal::displayError("Need 1 arg!");
-        return MStatus::kFailure;
-    }
-
     MArgDatabase argData(syntax(), args);
 
-    // arg
-    MString argument = args.asString(0, &status);
-    if (status != MS::kSuccess) {
+    if (args.length() == 0) {
+        MGlobal::getActiveSelectionList(mList);
+    } else if (args.length() > 0) {
+        MString argument = args.asString(0, &status);
+        if (status != MS::kSuccess) {
+            return MStatus::kFailure;
+        }
+        CHECK_MSTATUS_AND_RETURN_IT(status);
+        mList.add(argument);
+    } else {
         return MStatus::kFailure;
     }
-    CHECK_MSTATUS_AND_RETURN_IT(status);
+
+    mList.getDagPath(0, mDagPath);
+
+    // arg
 
     if (argData.isFlagSet("-check")) {
         argData.getFlagArgument("-check", 0, checkNumber);
@@ -231,70 +237,73 @@ MStatus MeshChecker::doIt(const MArgList& args)
     else
         minEdgeLength = 0.000001;
 
-    MSelectionList mList;
-    mList.add(argument);
-    mList.getDagPath(0, mDagPath);
+    if (argData.isFlagSet("-edit"))
+        argData.getFlagArgument("-edit", 0, edit);
+    else
+        edit = false;
 
     switch (checkNumber) {
-    case MeshChecker::TRIANGLES:
-        status = findTriangles();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("face");
-        break;
-    case MeshChecker::NGONS:
-        status = findNgons();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("face");
-        break;
-    case MeshChecker::NON_MANIFOLD_EDGES:
-        status = findNonManifoldEdges();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("edge");
-        break;
-    case MeshChecker::LAMINA_FACES:
-        status = findLaminaFaces();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("face");
-        break;
-    case MeshChecker::BI_VALENT_FACES:
-        status = findBiValentFaces();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("vertex");
-        break;
-    case MeshChecker::ZERO_AREA_FACES:
-        status = findZeroAreaFaces(maxFaceArea);
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("face");
-        break;
-    case MeshChecker::MESH_BORDER:
-        status = findMeshBorderEdges();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("edge");
-        break;
-    case MeshChecker::CREASE_EDGE:
-        status = findCreaseEDges();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("edge");
-        break;
-    case MeshChecker::ZERO_LENGTH_EDGES:
-        status = findZeroLengthEdges();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        resultArray = setResultString("edge");
-        break;
-    case MeshChecker::UNFROZEN_VERTICES:
-        status = findUnfrozenVertices();
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        // if (unfrozen) {
-        //     resultArray.append(mDagPath.fullPathName());
-        // }
-        resultArray = setResultString("vertex");
-        break;
-    case MeshChecker::TEST:
-        break;
-    default:
-        MGlobal::displayError("Invalid check number");
-        return MS::kFailure;
-        break;
+        case MeshChecker::TRIANGLES:
+            status = findTriangles();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("face");
+            break;
+        case MeshChecker::NGONS:
+            status = findNgons();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("face");
+            break;
+        case MeshChecker::NON_MANIFOLD_EDGES:
+            status = findNonManifoldEdges();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("edge");
+            break;
+        case MeshChecker::LAMINA_FACES:
+            status = findLaminaFaces();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("face");
+            break;
+        case MeshChecker::BI_VALENT_FACES:
+            status = findBiValentFaces();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("vertex");
+            break;
+        case MeshChecker::ZERO_AREA_FACES:
+            status = findZeroAreaFaces(maxFaceArea);
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("face");
+            break;
+        case MeshChecker::MESH_BORDER:
+            status = findMeshBorderEdges();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("edge");
+            break;
+        case MeshChecker::CREASE_EDGE:
+            status = findCreaseEDges();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("edge");
+            break;
+        case MeshChecker::ZERO_LENGTH_EDGES:
+            status = findZeroLengthEdges();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            resultArray = setResultString("edge");
+            break;
+        case MeshChecker::UNFROZEN_VERTICES:
+            status = findUnfrozenVertices();
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            if (edit) {
+                status = resetUnfrozenVertices();
+                CHECK_MSTATUS_AND_RETURN_IT(status);
+            } else {
+                resultArray = setResultString("vertex");
+            }
+            break;
+        case MeshChecker::TEST:
+            break;
+        default:
+            MGlobal::displayError("Invalid check number");
+            return MS::kFailure;
+            break;
     }
 
     MPxCommand::setResult(resultArray);
@@ -302,22 +311,18 @@ MStatus MeshChecker::doIt(const MArgList& args)
     return redoIt();
 }
 
-MStatus MeshChecker::redoIt()
-{
+MStatus MeshChecker::redoIt() {
     return MS::kSuccess;
 }
 
-MStatus MeshChecker::undoIt()
-{
+MStatus MeshChecker::undoIt() {
     return MS::kSuccess;
 }
 
-bool MeshChecker::isUndoable() const
-{
+bool MeshChecker::isUndoable() const {
     return false;
 }
 
-void* MeshChecker::creator()
-{
+void *MeshChecker::creator() {
     return new MeshChecker;
 }

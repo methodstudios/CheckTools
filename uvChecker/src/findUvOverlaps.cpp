@@ -1,7 +1,7 @@
 #include "findUvOverlaps.h"
 #include "BentleyOttman/point2D.hpp"
 #include "BentleyOttman/lineSegment.hpp"
-#include "BentleyOttman/bentleyOttman.hpp"
+#include "BentleyOttman/bentleyOttmann.hpp"
 
 #include <maya/MArgDatabase.h>
 #include <maya/MArgList.h>
@@ -155,13 +155,13 @@ MStatus FindUvOverlaps::redoIt() {
         int uvCounter = 0;
         int nextCounter;
         fnMesh.getAssignedUVs(uvCounts, uvIds, uvSetPtr);
-        int uvCountSize = uvCounts.length();
+        size_t uvCountSize = uvCounts.length();
 
         std::vector<std::pair<int, int>> idPairVec;
         idPairVec.reserve(uvCountSize * 4);
 
-        for (unsigned int i = 0; i < uvCountSize; i++) {
-            int numFaceUVs = uvCounts[i];
+        for (unsigned int j = 0; j < uvCountSize; j++) {
+            int numFaceUVs = uvCounts[j];
             for (int u = 0; u < numFaceUVs; u++) {
                 if (u == numFaceUVs - 1) {
                     nextCounter = uvCounter - numFaceUVs + 1;
@@ -212,16 +212,16 @@ MStatus FindUvOverlaps::redoIt() {
             edgeVector[shellIndex].emplace_back(line);
         }
 
-        for (size_t i = 0; i < edgeVector.size(); i++) {
+        for (size_t j = 0; j < edgeVector.size(); j++) {
             // Copy lineSegment vectors from temp vector to master shell Array
-            uvShellArrayMaster[i + uvShellCounter].edges = edgeVector[i];
+            uvShellArrayMaster[j + uvShellCounter].edges = edgeVector[j];
         }
 
         uvShellCounter += nbUvShells;
 
     } // Object loop ends
 
-    std::vector<BentleyOttman> btoVector;
+    std::vector<BentleyOttmann> btoVector;
     btoVector.reserve(uvShellArrayMaster.size());
 
     size_t numShells = uvShellArrayMaster.size();
@@ -247,8 +247,8 @@ MStatus FindUvOverlaps::redoIt() {
         shell.vMin = *std::min_element(vVec.begin(), vVec.end());
         shell.vMax = *std::max_element(vVec.begin(), vVec.end());
 
-        // Create BentleyOttman objects
-        BentleyOttman bto(shell.edges, shell.path);
+        // Create BentleyOttmann objects
+        BentleyOttmann bto(shell.edges, shell.path);
         btoVector.emplace_back(bto);
     }
 
@@ -308,9 +308,9 @@ MStatus FindUvOverlaps::redoIt() {
                     }
                 }
 
-                BentleyOttman newBO_a(overlapsA, shellA.path);
-                BentleyOttman newBO_b(overlapsB, shellB.path);
-                BentleyOttman b = newBO_a + newBO_b;
+                BentleyOttmann newBO_a(overlapsA, shellA.path);
+                BentleyOttmann newBO_b(overlapsB, shellB.path);
+                BentleyOttmann b = newBO_a + newBO_b;
                 btoVector.emplace_back(b);
             }
         }
@@ -327,7 +327,7 @@ MStatus FindUvOverlaps::redoIt() {
     timer.beginTimer();
 
     if (multithread) {
-        int numTasks = 12;
+        size_t numTasks = 12;
         if (btoVector.size() <= numTasks) {
             // If number of shells is small enough, create same amount of threas
             std::thread *threadArray = new std::thread[btoVector.size()];
@@ -342,11 +342,11 @@ MStatus FindUvOverlaps::redoIt() {
             // If number of shells are larger than tasks, split them into each task
             std::vector<std::thread> threadVector;
             threadVector.reserve(numTasks);
-            int numChecks = btoVector.size();
-            int taskLength = round((float)numChecks / (float)numTasks);
-            int start = 0;
-            int end = taskLength;
-            int last = numTasks - 1;
+            size_t numChecks = btoVector.size();
+            size_t taskLength = round((float)numChecks / (float)numTasks);
+            size_t start = 0;
+            size_t end = taskLength;
+            size_t last = numTasks - 1;
             for (int i=0; i<numTasks; i++) {
                 if (end > numChecks || i == last) {
                     end = numChecks;
@@ -381,7 +381,7 @@ MStatus FindUvOverlaps::redoIt() {
     std::unordered_set<std::string> resultSet;
     for (size_t i = 0; i < btoVector.size(); i++) {
 
-        BentleyOttman &bto = btoVector[i];
+        BentleyOttmann &bto = btoVector[i];
         std::vector<LineSegment *>::iterator iter;
         std::string path;
         for (iter = bto.resultPtr.begin(); iter != bto.resultPtr.end(); ++iter) {
@@ -409,11 +409,11 @@ MStatus FindUvOverlaps::redoIt() {
     return MS::kSuccess;
 }
 
-void FindUvOverlaps::check(BentleyOttman &bto) {
+void FindUvOverlaps::check(BentleyOttmann &bto) {
     bto.check();
 }
 
-void FindUvOverlaps::check_mt(std::vector<BentleyOttman> &bto, int start, int end) {
+void FindUvOverlaps::check_mt(std::vector<BentleyOttmann> &bto, int start, int end) {
     for (int i=start; i<end; i++) {
         bto[i].check();
     }
