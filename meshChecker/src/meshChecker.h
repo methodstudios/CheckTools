@@ -6,21 +6,6 @@
 
 #include <vector>
 
-enum class MeshCheckType
-{
-    TRIANGLES = 0,
-    NGONS,
-    NON_MANIFOLD_EDGES,
-    LAMINA_FACES,
-    BI_VALENT_FACES,
-    ZERO_AREA_FACES,
-    MESH_BORDER,
-    CREASE_EDGE,
-    ZERO_LENGTH_EDGES,
-    UNFROZEN_VERTICES,
-    TEST
-};
-
 class MeshChecker final : public MPxCommand
 {
 public:
