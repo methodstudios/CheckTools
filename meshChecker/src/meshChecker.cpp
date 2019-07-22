@@ -37,7 +37,7 @@ enum class MeshCheckType
     CREASE_EDGE,
     ZERO_LENGTH_EDGES,
     UNFROZEN_VERTICES,
-    TEST
+    UNDEFINED // keep last
 };
 
 enum class ResultType
@@ -415,20 +415,21 @@ MStatus MeshChecker::doIt(const MArgList &args) {
     // argument parsing
     MeshCheckType check_type;
     MArgDatabase argData(syntax(), args);
-    if (argData.isFlagSet("-check"))
-    {
-        unsigned int check_value;
-        argData.getFlagArgument("-check", 0, check_value);
-
-        check_type = static_cast<MeshCheckType>(check_value);
-
-        // TODO check if exeds value
-    }
-    else
+    if (!argData.isFlagSet("-check"))
     {
         MGlobal::displayError("Check type required.");
         return MS::kFailure;
     }
+
+    unsigned int check_value;
+    argData.getFlagArgument("-check", 0, check_value);
+    if(check_value >= static_cast<unsigned int>(MeshCheckType::UNDEFINED))
+    {
+        MGlobal::displayError("Invalid check type.");
+        return MS::kFailure;
+    }
+
+    check_type = static_cast<MeshCheckType>(check_value);
 
     // execute operation
     if(check_type == MeshCheckType::TRIANGLES)
@@ -488,9 +489,6 @@ MStatus MeshChecker::doIt(const MArgList &args) {
         if (argData.isFlagSet("-fix")) argData.getFlagArgument("-fix", 0, fix);
 
         setResult(hasVertexPntsAttr(mesh, fix));
-    }
-    else if(check_type == MeshCheckType::TEST)
-    {
     }
     else
     {

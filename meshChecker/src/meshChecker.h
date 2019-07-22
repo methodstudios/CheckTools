@@ -18,10 +18,11 @@ public:
     MStatus redoIt() final;
     bool isUndoable() const final;
 
-    //
+    // aliases
     using Index = int;
     using IndexArray = std::vector<Index>;
 
+    // operations
     static IndexArray findTriangles(const MFnMesh&);
     static IndexArray findNgons(const MFnMesh&);
     static IndexArray findNonManifoldEdges(const MFnMesh&);
