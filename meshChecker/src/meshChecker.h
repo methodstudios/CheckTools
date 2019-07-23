@@ -6,7 +6,6 @@
 
 #include <vector>
 
-
 class MeshChecker final : public MPxCommand
 {
 public:
