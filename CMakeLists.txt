@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
 project(CheckTools CXX)
 
+option(BUILD_TESTS "Build Maya test executables" OFF)
+
 include(CMakeParseArguments)
 
 if(NOT MAYA_ROOT_DIR)
@@ -55,6 +57,21 @@ endif()
 
 target_include_directories(Maya SYSTEM INTERFACE ${MAYA_INCLUDE_DIR})
 
+function(find_and_link_maya_libraries TARGET MAYA_LIBS)
+    foreach(MAYA_LIB ${MAYA_LIBS})
+        find_library(FOUND-${MAYA_LIB} ${MAYA_LIB}
+                PATH ${MAYA_LIB_DIR}
+                NO_DEFAULT_PATH)
+        if(FOUND-${MAYA_LIB})
+            message(STATUS "Library: ${MAYA_LIB} - FOUND")
+        else()
+            message(FATAL_ERROR "Library: ${MAYA_LIB} - NOT FOUND")
+        endif()
+
+        target_link_libraries(${TARGET} INTERFACE ${FOUND-${MAYA_LIB}})
+    endforeach()
+endfunction(find_and_link_maya_libraries)
+
 # find libs
 set(MAYA_LIBS
         Foundation
@@ -64,21 +81,21 @@ set(MAYA_LIBS
         OpenMayaRender
         OpenMayaUI
         )
+find_and_link_maya_libraries(Maya "${MAYA_LIBS}")
 
-foreach(MAYA_LIB ${MAYA_LIBS})
-    find_library(LIB-${MAYA_LIB} ${MAYA_LIB}
-            PATH ${MAYA_LIB_DIR}
-            NO_DEFAULT_PATH)
-    if(LIB-${MAYA_LIB})
-        message(STATUS "Library: ${MAYA_LIB} - FOUND")
-    else()
-        message(FATAL_ERROR "Library: ${MAYA_LIB} - NOT FOUND")
-    endif()
+# executable target
+add_library(MayaExe INTERFACE)
+target_link_libraries(MayaExe INTERFACE Maya)
 
-    target_link_libraries(Maya INTERFACE ${LIB-${MAYA_LIB}})
-endforeach()
+set(MAYA_EXE_LIBS
+        OpenMayalib
+        Shared
+        )
+find_and_link_maya_libraries(MayaExe "${MAYA_EXE_LIBS}")
 
-# add_maya_library
+#
+# Maya Library
+#
 function(add_maya_library)
     set(opt)
     set(one NAME)
@@ -100,6 +117,22 @@ function(add_maya_library)
             )
 endfunction(add_maya_library)
 
+#
+# Maya Executable
+#
+function(add_maya_executable)
+    set(opt)
+    set(one NAME)
+    set(mul SOURCE)
+    cmake_parse_arguments(ADD_MAYA_EXE "${opt}" "${one}" "${mul}" ${ARGN})
+
+    add_executable(${ADD_MAYA_EXE_NAME} ${ADD_MAYA_EXE_SOURCE})
+    target_link_libraries(${ADD_MAYA_EXE_NAME} PRIVATE MayaExe)
+endfunction(add_maya_executable)
+
+#
+# Sources
+#
 add_subdirectory(meshChecker)
 add_subdirectory(uvChecker)
 add_subdirectory(uvOverlapChecker)
