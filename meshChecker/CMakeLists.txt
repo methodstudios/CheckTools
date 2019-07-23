@@ -8,3 +8,7 @@ add_maya_library(NAME ${PROJECT_NAME}
         )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION plug-ins)
+
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
