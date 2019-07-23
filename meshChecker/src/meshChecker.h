@@ -6,6 +6,7 @@
 
 #include <vector>
 
+
 class MeshChecker final : public MPxCommand
 {
 public:
@@ -33,6 +34,7 @@ public:
     static IndexArray findCreaseEdges(const MFnMesh&);
     static IndexArray findZeroLengthEdges(const MFnMesh&, double minEdgeLength);
     static IndexArray findUnfrozenVertices(const MFnMesh&);
+    static IndexArray findOverlappingFaces(const MFnMesh&);
     static bool hasVertexPntsAttr(const MFnMesh&, bool fix);
 
 private:

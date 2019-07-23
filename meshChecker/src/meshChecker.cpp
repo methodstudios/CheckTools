@@ -16,9 +16,13 @@
 #include <maya/MItMeshPolygon.h>
 #include <maya/MItMeshVertex.h>
 #include <maya/MDagPath.h>
+#include <maya/MFloatPointArray.h>
 
 #include <limits>
 #include <cmath>
+#include <array>
+#include <list>
+#include <set>
 
 using IndexArray = MeshChecker::IndexArray;
 
@@ -37,6 +41,7 @@ enum class MeshCheckType
     CREASE_EDGE,
     ZERO_LENGTH_EDGES,
     UNFROZEN_VERTICES,
+    OVERLAPPING_FACES,
     UNDEFINED // keep last
 };
 
@@ -68,7 +73,6 @@ MStringArray create_result_string(const MDagPath& path, const IndexArray& indice
                 result.emplace_back(full_path + ".vtx[" + index + "]");
                 break;
             }
-
             case ResultType::Edge:
             {
                 result.emplace_back(full_path + ".e[" + index + "]");
@@ -305,6 +309,53 @@ IndexArray MeshChecker::findUnfrozenVertices(const MFnMesh& mesh)
     return indices;
 }
 
+IndexArray MeshChecker::findOverlappingFaces(const MFnMesh& mesh)
+{
+    MFloatPoint pos;
+    std::array<float, 4> posArray;
+    std::list<std::array<float, 4>> listPos;
+    std::set<std::list<std::array<float, 4>>> face_set;
+    unsigned int total = 0;
+    unsigned int prev_length = 0;
+    float x;
+    float y;
+    float z;
+    float w;
+
+    IndexArray index_array;
+    index_array.reserve(static_cast<size_t>(mesh.numVertices()));
+
+    MIntArray vertexCount;
+    MIntArray vertexList;
+    mesh.getVertices(vertexCount, vertexList);
+
+    MFloatPointArray vertexArray;
+    mesh.getPoints(vertexArray);
+    if (vertexCount.length() != 0) {
+        for (unsigned int j = 0; j < vertexCount.length(); j++) {
+            listPos.clear();
+            for (unsigned int i = total; i < (total + vertexCount[j]); i++) {
+                pos = vertexArray[vertexList[i]];
+                // precision 5 decimal
+                x = round( pos.x * 100000.0 ) / 100000.0;
+                y = round( pos.y * 100000.0 ) / 100000.0;
+                z = round( pos.z * 100000.0 ) / 100000.0;
+                w = round( pos.w * 100000.0 ) / 100000.0;
+                posArray = {x, y, z, w};
+                listPos.push_back(posArray);
+            }
+            listPos.sort();
+            face_set.insert(listPos);
+            if (prev_length == face_set.size()){
+                index_array.push_back(j);
+            }
+            prev_length = face_set.size();
+            total += vertexCount[j];
+        }
+    }
+    return index_array;
+}
+
 
 bool MeshChecker::hasVertexPntsAttr(const MFnMesh& mesh, bool fix)
 {
@@ -494,6 +545,11 @@ MStatus MeshChecker::doIt(const MArgList &args)
 
             setResult(hasVertexPntsAttr(mesh, fix));
         }
+        else if(check_type == MeshCheckType::OVERLAPPING_FACES)
+        {
+            auto indices = findOverlappingFaces(mesh);
+            setResult(create_result_string(path, indices, ResultType::Face));
+        }
         else
         {
             MGlobal::displayWarning("Invalid check number!");
@@ -533,7 +589,7 @@ MSyntax MeshChecker::newSyntax()
     syntax.addFlag("-mel", "-minEdgeLength", MSyntax::kDouble);
     syntax.addFlag("-fix", "-doFix", MSyntax::kBoolean);
 
-//    syntax.addFlag("-f", "-find", MSyntax::kString);
+    //syntax.addFlag("-f", "-find", MSyntax::kString);
 //    syntax.addFlag("-t", "-tolerance", MSyntax::kDouble);
     return syntax;
 }
