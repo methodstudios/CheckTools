@@ -380,120 +380,125 @@ bool MeshChecker::hasVertexPntsAttr(const MFnMesh& mesh, bool fix)
     return false;
 }
 
-MStatus MeshChecker::doIt(const MArgList &args) {
-
+MStatus MeshChecker::doIt(const MArgList &args)
+{
     MStatus status;
+    MArgDatabase args_database(syntax(), args);
+
+    // -check arg
+    MeshCheckType check_type;
+    if (!args_database.isFlagSet("-check"))
+    {
+        MGlobal::displayError("-check argument is required");
+        return MS::kFailure;
+    }
+    else
+    {
+        // process check
+        unsigned int check_value;
+        status = args_database.getFlagArgument("-check", 0, check_value);
+        CHECK_MSTATUS_AND_RETURN_IT(status);
+
+        if(check_value >= static_cast<unsigned int>(MeshCheckType::UNDEFINED))
+        {
+            MGlobal::displayError("Invalid check.");
+            return MS::kFailure;
+        }
+        check_type = static_cast<MeshCheckType>(check_value);
+    }
 
     // if argument is not provided use selection list
     MSelectionList selection;
-    if (args.length() == 0)
+    args_database.getObjects(selection);
+
+    if(!selection.length())
     {
-        MGlobal::getActiveSelectionList(selection);
-    }
-    else
-    {
-        MString argument = args.asString(0, &status);
-        if (status != MS::kSuccess)
-        {
-            return MStatus::kFailure;
-        }
+        status = MGlobal::getActiveSelectionList(selection);
         CHECK_MSTATUS_AND_RETURN_IT(status);
-        selection.add(argument);
     }
 
-    // mesh construction
-    MDagPath path;
-    selection.getDagPath(0, path);
-    if(path.apiType() != MFn::kMesh)
+    if(selection.length() == 0)
     {
-        MGlobal::displayError("MeshCheker works on meshes.");
-        return MS::kFailure;
+        MGlobal::displayError("Invalid selection.");
+        return MStatus::kFailure;
     }
 
-    MFnMesh mesh{path};
+    for(unsigned int i{}; i<selection.length(); ++i)
+    {
+        MDagPath path;
+        selection.getDagPath(i, path);
 
-    // argument parsing
-    MeshCheckType check_type;
-    MArgDatabase argData(syntax(), args);
-    if (!argData.isFlagSet("-check"))
-    {
-        MGlobal::displayError("Check type required.");
-        return MS::kFailure;
-    }
+        MFnMesh mesh{path, &status};
+        if(!status)
+        {
+            MGlobal::displayWarning("MeshCheker works on meshes.");
+            continue;
+        }
 
-    unsigned int check_value;
-    argData.getFlagArgument("-check", 0, check_value);
-    if(check_value >= static_cast<unsigned int>(MeshCheckType::UNDEFINED))
-    {
-        MGlobal::displayError("Invalid check type.");
-        return MS::kFailure;
-    }
+        double max_tolerance{0.000001};
 
-    check_type = static_cast<MeshCheckType>(check_value);
+        // execute operation
+        if(check_type == MeshCheckType::TRIANGLES)
+        {
+            auto indices = findTriangles(mesh);
+            setResult(create_result_string(path, indices, ResultType::Face));
+        }
+        else if(check_type == MeshCheckType::NGONS)
+        {
+            auto indices = findNgons(mesh);
+            setResult(create_result_string(path, indices, ResultType::Face));
+        }
+        else if(check_type == MeshCheckType::NON_MANIFOLD_EDGES)
+        {
+            auto indices = findNonManifoldEdges(mesh);
+            setResult(create_result_string(path, indices, ResultType::Edge));
+        }
+        else if(check_type == MeshCheckType::LAMINA_FACES)
+        {
+            auto indices = findLaminaFaces(mesh);
+            setResult(create_result_string(path, indices, ResultType::Face));
+        }
+        else if(check_type == MeshCheckType::BI_VALENT_FACES)
+        {
+            auto indices = findBiValentFaces(mesh);
+            setResult(create_result_string(path, indices, ResultType::Vertex));
+        }
+        else if(check_type == MeshCheckType::ZERO_AREA_FACES)
+        {
+            if (args_database.isFlagSet("-maxFaceArea")) args_database.getFlagArgument("-maxFaceArea", 0, max_tolerance);
 
-    // execute operation
-    if(check_type == MeshCheckType::TRIANGLES)
-    {
-        auto indices = findTriangles(mesh);
-        setResult(create_result_string(path, indices, ResultType::Face));
-    }
-    else if(check_type == MeshCheckType::NGONS)
-    {
-        auto indices = findNgons(mesh);
-        setResult(create_result_string(path, indices, ResultType::Face));
-    }
-    else if(check_type == MeshCheckType::NON_MANIFOLD_EDGES)
-    {
-        auto indices = findNonManifoldEdges(mesh);
-        setResult(create_result_string(path, indices, ResultType::Edge));
-    }
-    else if(check_type == MeshCheckType::LAMINA_FACES)
-    {
-        auto indices = findLaminaFaces(mesh);
-        setResult(create_result_string(path, indices, ResultType::Face));
-    }
-    else if(check_type == MeshCheckType::BI_VALENT_FACES)
-    {
-        auto indices = findBiValentFaces(mesh);
-        setResult(create_result_string(path, indices, ResultType::Vertex));
-    }
-    else if(check_type == MeshCheckType::ZERO_AREA_FACES)
-    {
-        double maxFaceArea{0.000001};
-        if (argData.isFlagSet("-maxFaceArea")) argData.getFlagArgument("-maxFaceArea", 0, maxFaceArea);
+            auto indices = findZeroAreaFaces(mesh, max_tolerance);
+            setResult(create_result_string(path, indices, ResultType::Face));
+        }
+        else if(check_type == MeshCheckType::MESH_BORDER)
+        {
+            auto indices = findMeshBorderEdges(mesh);
+            setResult(create_result_string(path, indices, ResultType::Edge));
+        }
+        else if(check_type == MeshCheckType::CREASE_EDGE)
+        {
+            auto indices = findCreaseEdges(mesh);
+            setResult(create_result_string(path, indices, ResultType::Edge));
+        }
+        else if(check_type == MeshCheckType::ZERO_LENGTH_EDGES)
+        {
+            if (args_database.isFlagSet("-minEdgeLength")) args_database.getFlagArgument("-minEdgeLength", 0, max_tolerance);
 
-        auto indices = findZeroAreaFaces(mesh, maxFaceArea);
-        setResult(create_result_string(path, indices, ResultType::Face));
-    }
-    else if(check_type == MeshCheckType::MESH_BORDER)
-    {
-        auto indices = findMeshBorderEdges(mesh);
-        setResult(create_result_string(path, indices, ResultType::Edge));
-    }
-    else if(check_type == MeshCheckType::CREASE_EDGE)
-    {
-        auto indices = findCreaseEdges(mesh);
-        setResult(create_result_string(path, indices, ResultType::Edge));
-    }
-    else if(check_type == MeshCheckType::ZERO_LENGTH_EDGES)
-    {
-        double minEdgeLength = 0.000001;
-        if (argData.isFlagSet("-minEdgeLength")) argData.getFlagArgument("-minEdgeLength", 0, minEdgeLength);
+            auto indices = findZeroLengthEdges(mesh, max_tolerance);
+            setResult(create_result_string(path, indices, ResultType::Edge));
+        }
+        else if(check_type == MeshCheckType::UNFROZEN_VERTICES)
+        {
+            bool fix = false;
+            if (args_database.isFlagSet("-fix")) args_database.getFlagArgument("-fix", 0, fix);
 
-        auto indices = findZeroLengthEdges(mesh, minEdgeLength);
-        setResult(create_result_string(path, indices, ResultType::Edge));
-    }
-    else if(check_type == MeshCheckType::UNFROZEN_VERTICES)
-    {
-        bool fix = false;
-        if (argData.isFlagSet("-fix")) argData.getFlagArgument("-fix", 0, fix);
-
-        setResult(hasVertexPntsAttr(mesh, fix));
-    }
-    else
-    {
-        MGlobal::displayError("Invalid check number");
-        return MS::kFailure;
+            setResult(hasVertexPntsAttr(mesh, fix));
+        }
+        else
+        {
+            MGlobal::displayWarning("Invalid check number!");
+            continue;
+        }
     }
 
     return redoIt();
@@ -522,9 +527,13 @@ void* MeshChecker::creator()
 MSyntax MeshChecker::newSyntax()
 {
     MSyntax syntax;
+    syntax.setObjectType(MSyntax::kSelectionList);
     syntax.addFlag("-c", "-check", MSyntax::kUnsigned);
     syntax.addFlag("-mfa", "-maxFaceArea", MSyntax::kDouble);
     syntax.addFlag("-mel", "-minEdgeLength", MSyntax::kDouble);
     syntax.addFlag("-fix", "-doFix", MSyntax::kBoolean);
+
+//    syntax.addFlag("-f", "-find", MSyntax::kString);
+//    syntax.addFlag("-t", "-tolerance", MSyntax::kDouble);
     return syntax;
 }
