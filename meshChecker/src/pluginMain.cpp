@@ -4,7 +4,7 @@
 MStatus initializePlugin(MObject mObj)
 {
     MFnPlugin fnPlugin(mObj, "Michitaka Inoue", "1.1.5", "Any");
-    fnPlugin.registerCommand("checkMesh", MeshChecker::creator, MeshChecker::newSyntax);
+    fnPlugin.registerCommand("checkMesh", MeshChecker::Creator, MeshChecker::NewSyntax);
     return MS::kSuccess;
 }
 

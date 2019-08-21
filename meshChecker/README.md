@@ -12,6 +12,7 @@ Mesh/Topology checker for my own
 7. crease edges
 8. zero length edges
 9. vertex pnts attributes
+10. overlapping faces
 
 ## Flags
 | Longname | Shortname | Argument types | Default | Properties |
