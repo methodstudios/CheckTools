@@ -72,6 +72,7 @@ function(find_and_link_maya_libraries TARGET MAYA_LIBS)
     endforeach()
 endfunction(find_and_link_maya_libraries)
 
+
 # find libs
 set(MAYA_LIBS
         Foundation
@@ -82,16 +83,6 @@ set(MAYA_LIBS
         OpenMayaUI
         )
 find_and_link_maya_libraries(Maya "${MAYA_LIBS}")
-
-# executable target
-add_library(MayaExe INTERFACE)
-target_link_libraries(MayaExe INTERFACE Maya)
-
-set(MAYA_EXE_LIBS
-        OpenMayalib
-        Shared
-        )
-find_and_link_maya_libraries(MayaExe "${MAYA_EXE_LIBS}")
 
 #
 # Maya Library
@@ -117,18 +108,32 @@ function(add_maya_library)
             )
 endfunction(add_maya_library)
 
-#
-# Maya Executable
-#
-function(add_maya_executable)
-    set(opt)
-    set(one NAME)
-    set(mul SOURCE)
-    cmake_parse_arguments(ADD_MAYA_EXE "${opt}" "${one}" "${mul}" ${ARGN})
+if(BUILD_TESTS)
 
-    add_executable(${ADD_MAYA_EXE_NAME} ${ADD_MAYA_EXE_SOURCE})
-    target_link_libraries(${ADD_MAYA_EXE_NAME} PRIVATE MayaExe)
-endfunction(add_maya_executable)
+    # executable target
+    add_library(MayaExe INTERFACE)
+    target_link_libraries(MayaExe INTERFACE Maya)
+
+    set(MAYA_EXE_LIBS
+            OpenMayalib
+            Shared
+            )
+    find_and_link_maya_libraries(MayaExe "${MAYA_EXE_LIBS}")
+
+    #
+    # Maya Executable
+    #
+    function(add_maya_executable)
+        set(opt)
+        set(one NAME)
+        set(mul SOURCE)
+        cmake_parse_arguments(ADD_MAYA_EXE "${opt}" "${one}" "${mul}" ${ARGN})
+
+        add_executable(${ADD_MAYA_EXE_NAME} ${ADD_MAYA_EXE_SOURCE})
+        target_link_libraries(${ADD_MAYA_EXE_NAME} PRIVATE MayaExe)
+    endfunction(add_maya_executable)
+
+endif()
 
 #
 # Sources
