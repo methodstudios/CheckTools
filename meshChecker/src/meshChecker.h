@@ -1,7 +1,9 @@
 #ifndef __MESHCHECKER_H__
 #define __MESHCHECKER_H__
 
-#include <maya/MApiNamespace.h>
+// MApiNamespace.h can not be used,
+// MFnMesh can't be forward declared, for some maya versions it goes to the namespace
+#include <maya/MFnMesh.h>
 #include <maya/MPxCommand.h>
 
 #include <vector>
