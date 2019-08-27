@@ -1,6 +1,6 @@
 name = "CheckTools"
 
-version = "1.1.0"
+version = "1.1.1"
 
 authors = [
     "github.com/minoue",
