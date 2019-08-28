@@ -1,143 +1,21 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.12)
 project(CheckTools CXX)
 
-option(BUILD_TESTS "Build Maya test executables" OFF)
 
-include(CMakeParseArguments)
+# Because our Maya installation system is inconsistent, we have to scan all known locations for headers/libraries
+list(APPEND MAYA_KNOWN_DIRS $ENV{REZ_MAYA_ROOT}/usr/autodesk/maya/include/maya)
+list(APPEND MAYA_KNOWN_DIRS $ENV{REZ_MAYA_ROOT}/ext/usr/autodesk/maya/include/maya)
 
-if(NOT MAYA_ROOT_DIR)
-    message(FATAL_ERROR "MAYA_ROOT_DIR must be set!")
-else()
-    message(STATUS "Using MAYA_ROOT_DIR ${MAYA_ROOT_DIR}")
-endif()
+find_file(MPX_FOUND
+    name MPxCommand.h
+    PATHS ${MAYA_KNOWN_DIRS}
+    NO_DEFAULT_PATH
+)
 
-add_library(Maya INTERFACE)
-target_compile_features(Maya INTERFACE cxx_std_11)
-set_target_properties(Maya PROPERTIES
-        INTERFACE_POSITION_INDEPENDENT_CODE ON
-        )
-target_compile_definitions(Maya INTERFACE
-        REQUIRE_IOSTREAM
-        _BOOL
-        )
-target_compile_options(Maya INTERFACE
-        $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Wconversion -Wsign-conversion -pedantic>
-        $<$<CXX_COMPILER_ID:MSVC>:/W4>
-        )
-# OS specific
-if (WIN32)
-    target_compile_definitions(Maya INTERFACE NT_PLUGIN)
-    set(MAYA_INCLUDE_DIR ${MAYA_ROOT_DIR}/include)
-    set(MAYA_LIB_DIR ${MAYA_ROOT_DIR}/lib)
-    set(MAYA_PLUGIN_SUFFIX ".mll")
-elseif (APPLE)
-    target_compile_definitions(Maya INTERFACE OSMac_)
-    set(MAYA_INCLUDE_DIR ${MAYA_ROOT_DIR}/devkit/include)
-    set(MAYA_LIB_DIR ${MAYA_ROOT_DIR}/Maya.app/Contents/MacOS)
-    set(MAYA_PLUGIN_SUFFIX ".bundle")
-elseif (UNIX)
-    target_compile_definitions(Maya INTERFACE LINUX)
-    set(MAYA_INCLUDE_DIR ${MAYA_ROOT_DIR}/include)
-    set(MAYA_LIB_DIR ${MAYA_ROOT_DIR}/lib)
-    set(MAYA_PLUGIN_SUFFIX ".so")
-else()
-    message(FATAL_ERROR "Operating system not supported")
-endif()
-
-# find MPxCommand header
-find_path(MPX_COMMAND_HEADER MPxCommand.h
-        PATH ${MAYA_INCLUDE_DIR}/maya
-        NO_DEFAULT_PATH
-        )
-if(MPX_COMMAND_HEADER)
-    message(STATUS "Header: MPxCommand.h - FOUND")
-else()
-    message(FATAL_ERROR "Header: MPxCommand.h - NOT FOUND")
-endif()
-
-target_include_directories(Maya SYSTEM INTERFACE ${MAYA_INCLUDE_DIR})
-
-function(find_and_link_maya_libraries TARGET MAYA_LIBS)
-    foreach(MAYA_LIB ${MAYA_LIBS})
-        find_library(FOUND-${MAYA_LIB} ${MAYA_LIB}
-                PATH ${MAYA_LIB_DIR}
-                NO_DEFAULT_PATH)
-        if(FOUND-${MAYA_LIB})
-            message(STATUS "Library: ${MAYA_LIB} - FOUND")
-        else()
-            message(FATAL_ERROR "Library: ${MAYA_LIB} - NOT FOUND")
-        endif()
-
-        target_link_libraries(${TARGET} INTERFACE ${FOUND-${MAYA_LIB}})
-    endforeach()
-endfunction(find_and_link_maya_libraries)
+# ../..
+get_filename_component(MAYA_ROOT_DIR ${MPX_FOUND} DIRECTORY)
+get_filename_component(MAYA_ROOT_DIR ${MAYA_ROOT_DIR} DIRECTORY)
+get_filename_component(MAYA_ROOT_DIR ${MAYA_ROOT_DIR} DIRECTORY)
 
 
-# find libs
-set(MAYA_LIBS
-        Foundation
-        OpenMaya
-        OpenMayaAnim
-        OpenMayaFX
-        OpenMayaRender
-        OpenMayaUI
-        )
-find_and_link_maya_libraries(Maya "${MAYA_LIBS}")
-
-#
-# Maya Library
-#
-function(add_maya_library)
-    set(opt)
-    set(one NAME)
-    set(mul PRIVATE_SOURCE PUBLIC_SOURCE)
-    cmake_parse_arguments(ADD_MAYA_LIB "${opt}" "${one}" "${mul}" ${ARGN})
-
-    add_library(${ADD_MAYA_LIB_NAME} SHARED "")
-    target_link_libraries(${ADD_MAYA_LIB_NAME} PRIVATE Maya)
-    set_target_properties(${ADD_MAYA_LIB_NAME} PROPERTIES
-            PREFIX ""
-            SUFFIX ${MAYA_PLUGIN_SUFFIX}
-            $<$<CXX_COMPILER_ID:MSVC>: LINK_FLAGS /export:initializePlugin /export:uninitializePlugin>
-            )
-    target_sources(${ADD_MAYA_LIB_NAME}
-            PUBLIC
-                ${ADD_MAYA_LIB_PUBLIC_SOURCE}
-            PRIVATE
-                ${ADD_MAYA_LIB_PRIVATE_SOURCE}
-            )
-endfunction(add_maya_library)
-
-if(BUILD_TESTS)
-
-    # executable target
-    add_library(MayaExe INTERFACE)
-    target_link_libraries(MayaExe INTERFACE Maya)
-
-    set(MAYA_EXE_LIBS
-            OpenMayalib
-            Shared
-            )
-    find_and_link_maya_libraries(MayaExe "${MAYA_EXE_LIBS}")
-
-    #
-    # Maya Executable
-    #
-    function(add_maya_executable)
-        set(opt)
-        set(one NAME)
-        set(mul SOURCE)
-        cmake_parse_arguments(ADD_MAYA_EXE "${opt}" "${one}" "${mul}" ${ARGN})
-
-        add_executable(${ADD_MAYA_EXE_NAME} ${ADD_MAYA_EXE_SOURCE})
-        target_link_libraries(${ADD_MAYA_EXE_NAME} PRIVATE MayaExe)
-    endfunction(add_maya_executable)
-
-endif()
-
-#
-# Sources
-#
-add_subdirectory(meshChecker)
-add_subdirectory(uvChecker)
-add_subdirectory(uvOverlapChecker)
+add_subdirectory(src)

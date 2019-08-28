@@ -376,23 +376,23 @@ IndexArray MeshChecker::FindOverlappingFaces(const MFnMesh& mesh)
               }
           });
 
-        std::set<Vector4Array> face_set;
-        for (size_t poly_id{}, prev_length{}; poly_id < mesh.numPolygons(); ++poly_id)
+    std::set<Vector4Array> face_set;
+    for (size_t poly_id{}, prev_length{}; poly_id < mesh.numPolygons(); ++poly_id)
+    {
+        const size_t poly_vertex_count = vertex_count[poly_id];
+        const size_t poly_vertex_offset = vertex_offset[poly_id];
+
+        auto local = Vector4Array{rounded_pos.begin() + poly_vertex_offset,
+                                  rounded_pos.begin() + poly_vertex_offset + poly_vertex_count};
+
+        face_set.insert(std::move(local));
+
+        if (prev_length == face_set.size())
         {
-            const size_t poly_vertex_count = vertex_count[poly_id];
-            const size_t poly_vertex_offset = vertex_offset[poly_id];
-
-            auto local = Vector4Array{rounded_pos.begin() + poly_vertex_offset,
-                                      rounded_pos.begin() + poly_vertex_offset + poly_vertex_count};
-
-            face_set.insert(std::move(local));
-
-            if (prev_length == face_set.size())
-            {
-                index_array.push_back(static_cast<Index>(poly_id));
-            }
-            prev_length = static_cast<int>(face_set.size());
+            index_array.push_back(static_cast<Index>(poly_id));
         }
+        prev_length = static_cast<int>(face_set.size());
+    }
 
     return index_array;
 }
@@ -401,76 +401,38 @@ bool MeshChecker::HasVertexPntsAttr(const MFnMesh& mesh, bool fix)
 {
     MDagPath path;
     mesh.getPath(path);
+    MFnDagNode dag_node(path);
 
-    MStatus status;
+    MPlug pnts_plug = dag_node.findPlug("pnts");
 
-    path.extendToShape();
-    MFnDagNode dagNode(path);
-    MPlug pntsArray = dagNode.findPlug("pnts");
-    MDataHandle dataHandle = pntsArray.asMDataHandle();
-    MArrayDataHandle arrayDataHandle(dataHandle);
-    MDataHandle outputHandle;
+    MDataHandle pnts_data;
+    pnts_plug.getValue(pnts_data);
+    MArrayDataHandle vertex_array{pnts_data};
 
-    if (!fix) {
-        // Check only.
-
-        while (true)
-        {
-            outputHandle = arrayDataHandle.outputValue();
-
-            float3& xyz = outputHandle.asFloat3();
-            if (xyz) {
-                if (xyz[0] != 0.0) {
-                    pntsArray.destructHandle(dataHandle);
-                    return true;
-                }
-                if (xyz[1] != 0.0) {
-                    pntsArray.destructHandle(dataHandle);
-                    return true;
-                }
-                if (xyz[2] != 0.0) {
-                    pntsArray.destructHandle(dataHandle);
-                    return true;
-                }
-            }
-            status = arrayDataHandle.next();
-            if (status != MS::kSuccess) {
-                break;
-            }
-        }
-    }
-    else
+    for(unsigned int i{}; i<vertex_array.elementCount(); ++i)
     {
-        // Do fix. Reset all vertices pnts attr to 0
-        MObject pntx = dagNode.attribute("pntx");
-        MObject pnty = dagNode.attribute("pnty");
-        MObject pntz = dagNode.attribute("pntz");
-        MDataHandle xHandle;
-        MDataHandle yHandle;
-        MDataHandle zHandle;
+        vertex_array.jumpToArrayElement(i);
 
-        while (true) {
-            outputHandle = arrayDataHandle.outputValue();
+        MDataHandle outputHandle = vertex_array.outputValue();
+        MVector& vec = outputHandle.asVector();
 
-            // outputHandle.set3Double(0.0, 0.0, 0.0);
-
-            // setting 3 values at the same time kills maya in
-            // some environments somehow. So here setting values separately
-            xHandle = outputHandle.child(pntx);
-            yHandle = outputHandle.child(pnty);
-            zHandle = outputHandle.child(pntz);
-            xHandle.setFloat(0.0);
-            yHandle.setFloat(0.0);
-            zHandle.setFloat(0.0);
-
-            status = arrayDataHandle.next();
-            if (status != MS::kSuccess) {
-                break;
-            }
+        if(fix)
+        {
+            vec = MVector::zero;
+            continue;
         }
-        pntsArray.setMDataHandle(dataHandle);
+
+        if(vec != MVector::zero)
+        {
+            return true;
+        }
     }
-    pntsArray.destructHandle(dataHandle);
+
+    if(fix)
+    {
+        pnts_plug.setMDataHandle(pnts_data);
+    }
+
     return false;
 }
 
