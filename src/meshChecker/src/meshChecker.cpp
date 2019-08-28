@@ -376,23 +376,23 @@ IndexArray MeshChecker::FindOverlappingFaces(const MFnMesh& mesh)
               }
           });
 
-        std::set<Vector4Array> face_set;
-        for (size_t poly_id{}, prev_length{}; poly_id < mesh.numPolygons(); ++poly_id)
+    std::set<Vector4Array> face_set;
+    for (size_t poly_id{}, prev_length{}; poly_id < mesh.numPolygons(); ++poly_id)
+    {
+        const size_t poly_vertex_count = vertex_count[poly_id];
+        const size_t poly_vertex_offset = vertex_offset[poly_id];
+
+        auto local = Vector4Array{rounded_pos.begin() + poly_vertex_offset,
+                                  rounded_pos.begin() + poly_vertex_offset + poly_vertex_count};
+
+        face_set.insert(std::move(local));
+
+        if (prev_length == face_set.size())
         {
-            const size_t poly_vertex_count = vertex_count[poly_id];
-            const size_t poly_vertex_offset = vertex_offset[poly_id];
-
-            auto local = Vector4Array{rounded_pos.begin() + poly_vertex_offset,
-                                      rounded_pos.begin() + poly_vertex_offset + poly_vertex_count};
-
-            face_set.insert(std::move(local));
-
-            if (prev_length == face_set.size())
-            {
-                index_array.push_back(static_cast<Index>(poly_id));
-            }
-            prev_length = static_cast<int>(face_set.size());
+            index_array.push_back(static_cast<Index>(poly_id));
         }
+        prev_length = static_cast<int>(face_set.size());
+    }
 
     return index_array;
 }
