@@ -420,9 +420,9 @@ bool MeshChecker::HasVertexPntsAttr(const MFnMesh& mesh, bool fix)
         }
 
         constexpr auto eps = std::numeric_limits<float>::epsilon();
-        if(!(std::abs(vec.x) < eps &&
-             std::abs(vec.y) < eps &&
-             std::abs(vec.z) < eps))
+        if(std::abs(vec.x) > eps ||
+           std::abs(vec.y) > eps ||
+           std::abs(vec.z) > eps)
         {
             pnts_plug.destructHandle(pnts_data);
             return true;

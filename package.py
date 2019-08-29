@@ -1,11 +1,12 @@
 name = "CheckTools"
 
-version = "1.1.2"
+version = "1.1.3"
 
 authors = [
     "github.com/minoue",
     "smackenzie",
     "barejkop",
+    "dbataille",
 ]
 
 description = \
