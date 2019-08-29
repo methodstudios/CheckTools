@@ -401,37 +401,36 @@ bool MeshChecker::HasVertexPntsAttr(const MFnMesh& mesh, bool fix)
 {
     MDagPath path;
     mesh.getPath(path);
+
     MFnDagNode dag_node(path);
 
     MPlug pnts_plug = dag_node.findPlug("pnts");
-
-    MDataHandle pnts_data;
-    pnts_plug.getValue(pnts_data);
+    MDataHandle pnts_data = pnts_plug.asMDataHandle();
     MArrayDataHandle vertex_array{pnts_data};
 
-    for(unsigned int i{}; i<vertex_array.elementCount(); ++i)
+    for(unsigned int i{}; i<vertex_array.elementCount(); ++i, vertex_array.next())
     {
-        vertex_array.jumpToArrayElement(i);
-
         MDataHandle outputHandle = vertex_array.outputValue();
-        MVector& vec = outputHandle.asVector();
+        MFloatVector& vec = outputHandle.asFloatVector(); // CAN NOT BE DOUBLE!
 
         if(fix)
         {
-            vec = MVector::zero;
+            vec = MFloatVector::zero;
             continue;
         }
 
-        if(vec != MVector::zero)
+        constexpr auto eps = std::numeric_limits<float>::epsilon();
+        if(!(std::abs(vec.x) < eps &&
+             std::abs(vec.y) < eps &&
+             std::abs(vec.z) < eps))
         {
+            pnts_plug.destructHandle(pnts_data);
             return true;
         }
     }
 
-    if(fix)
-    {
-        pnts_plug.setMDataHandle(pnts_data);
-    }
+    pnts_plug.setMDataHandle(pnts_data);
+    pnts_plug.destructHandle(pnts_data);
 
     return false;
 }
