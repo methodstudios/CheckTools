@@ -429,11 +429,8 @@ bool MeshChecker::HasVertexPntsAttr(const MFnMesh& mesh, bool fix)
         }
     }
 
-    if(fix)
-    {
-        pnts_plug.setMDataHandle(pnts_data);
-        pnts_plug.destructHandle(pnts_data);
-    }
+    pnts_plug.setMDataHandle(pnts_data);
+    pnts_plug.destructHandle(pnts_data);
 
     return false;
 }
