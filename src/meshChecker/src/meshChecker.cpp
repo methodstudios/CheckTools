@@ -229,14 +229,12 @@ IndexArray MeshChecker::FindZeroAreaFaces(const MFnMesh& mesh, double maxFaceAre
     con_vector_int.reserve(static_cast<size_t>(mesh.numPolygons()));
     tbb::mutex countMutex;
 
-    double dummy_area;
-    int dummyIndex;
-
     tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numPolygons()), 10000),
         [&] (const tbb::blocked_range<size_t>& r)
         {
             countMutex.lock();
             MItMeshPolygon poly_it(path);
+            int dummyIndex;
             poly_it.setIndex(0, dummyIndex);
             double dummy_area;
             poly_it.getArea(dummy_area, MSpace::kWorld);
@@ -304,14 +302,12 @@ IndexArray MeshChecker::FindZeroLengthEdges(const MFnMesh& mesh, double minEdgeL
     con_vector_int.reserve(static_cast<size_t>(mesh.numEdges()));
     tbb::mutex countMutex;
 
-    double dummy_area;
-    int dummyIndex;
-
     tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numEdges()), 40000),
         [&] (const tbb::blocked_range<size_t>& r)
         {
             countMutex.lock();
             MItMeshEdge edge_it(path);
+            int dummyIndex;
             edge_it.setIndex(0, dummyIndex);
             double dummy_length;
             edge_it.getLength(dummy_length);
