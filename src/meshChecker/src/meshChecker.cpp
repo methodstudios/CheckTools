@@ -22,6 +22,8 @@
 #include <maya/MPointArray.h>
 #include <maya/MMeshIntersector.h>
 
+#include <tbb/concurrent_vector.h>
+#include <tbb/mutex.h>
 #include <tbb/tbb.h>
 
 #include <limits>
@@ -119,6 +121,8 @@ IndexArray MeshChecker::FindTriangles(const MFnMesh& mesh)
     MIntArray vertex_count, vertex_list;
     mesh.getVertices(vertex_count, vertex_list);
 
+    tbb::concurrent_vector<unsigned int> con_vector_int;
+
     IndexArray indices;
     indices.reserve(vertex_count.length());
 
@@ -130,10 +134,14 @@ IndexArray MeshChecker::FindTriangles(const MFnMesh& mesh)
                 auto index = static_cast<unsigned int>(i);
                 if(vertex_count[index] == 3)
                 {
-                    indices.push_back(i);
+                    con_vector_int.push_back(i);
                 }
             }
     });
+    for(auto i = 0; i<con_vector_int.size(); ++i)
+    {
+        indices.push_back(con_vector_int[i]);
+    }
     return indices;
 }
 
@@ -141,6 +149,8 @@ IndexArray MeshChecker::FindNGons(const MFnMesh& mesh)
 {
     MIntArray vertex_count, vertex_list;
     mesh.getVertices(vertex_count, vertex_list);
+
+    tbb::concurrent_vector<unsigned int> con_vector_int;
 
     IndexArray indices;
     indices.reserve(vertex_count.length());
@@ -153,10 +163,14 @@ IndexArray MeshChecker::FindNGons(const MFnMesh& mesh)
                 auto index = static_cast<unsigned int>(i);
                 if(vertex_count[index] >= 5)
                 {
-                    indices.push_back(i);
+                    con_vector_int.push_back(i);
                 }
             }
     });
+    for(auto i = 0; i<con_vector_int.size(); ++i)
+    {
+        indices.push_back(con_vector_int[i]);
+    }
     return indices;
 }
 
@@ -227,32 +241,39 @@ IndexArray MeshChecker::FindZeroAreaFaces(const MFnMesh& mesh, double maxFaceAre
 
     IndexArray indices;
     indices.reserve(static_cast<size_t>(mesh.numPolygons()));
+    tbb::concurrent_vector<unsigned int> con_vector_int;
+    tbb::mutex countMutex;
 
-    MItMeshPolygon poly_it(path);
-
-    bool isLocked = true;
+    double dummy_area;
     int dummyIndex;
 
-    tbb::mutex countMutex;
-    countMutex.lock();
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numPolygons())),
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numPolygons()), 10000),
         [&] (const tbb::blocked_range<size_t>& r)
         {
+            bool isLocked = true;
+            countMutex.lock();
+            MItMeshPolygon poly_it(path);
             for(auto i = r.begin(); i<r.end(); ++i)
             {
-                poly_it.setIndex(i, dummyIndex);
+                auto index = static_cast<unsigned int>(i);
+                poly_it.setIndex(index, dummyIndex);
                 double area;
                 poly_it.getArea(area, MSpace::kWorld);
                 if (area < maxFaceArea)
                 {
-                    indices.push_back(i);
+                    con_vector_int.push_back(index);
                 }
-                if (isLocked) {
+                if (isLocked)
+                {
                     countMutex.unlock();
                     isLocked = false;
                 }
             }
     });
+    for(auto i = 0; i<con_vector_int.size(); ++i)
+    {
+        indices.push_back(con_vector_int[i]);
+    }
     return indices;
 }
 
@@ -378,7 +399,7 @@ IndexArray MeshChecker::FindOverlappingFaces(const MFnMesh& mesh)
     Vector4Array rounded_pos;
     rounded_pos.resize(vertex_list.length());
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numPolygons())),
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numPolygons()), 10000),
           [&] (const tbb::blocked_range<size_t>& r)
           {
               for(auto poly_id = r.begin(); poly_id<r.end(); ++poly_id)
