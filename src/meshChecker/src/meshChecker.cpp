@@ -116,36 +116,47 @@ MeshChecker::MeshChecker()
 
 IndexArray MeshChecker::FindTriangles(const MFnMesh& mesh)
 {
-    auto num_polygons = static_cast<Index>(mesh.numPolygons());
+    MIntArray vertex_count, vertex_list;
+    mesh.getVertices(vertex_count, vertex_list);
 
     IndexArray indices;
-    indices.reserve(num_polygons);
+    indices.reserve(vertex_count.length());
 
-    for(auto poly_index = 0_i; poly_index<num_polygons; ++poly_index)
-    {
-
-        if(mesh.polygonVertexCount(static_cast<int>(poly_index)) == 3)
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(vertex_count.length())),
+        [&] (const tbb::blocked_range<size_t>& r)
         {
-            indices.push_back(poly_index);
-        }
-    }
+            for(auto i = r.begin(); i<r.end(); ++i)
+            {
+                auto index = static_cast<unsigned int>(i);
+                if(vertex_count[index] == 3)
+                {
+                    indices.push_back(i);
+                }
+            }
+    });
     return indices;
 }
 
 IndexArray MeshChecker::FindNGons(const MFnMesh& mesh)
 {
-    auto num_polygons = static_cast<Index>(mesh.numPolygons());
+    MIntArray vertex_count, vertex_list;
+    mesh.getVertices(vertex_count, vertex_list);
 
     IndexArray indices;
-    indices.reserve(static_cast<size_t>(num_polygons));
+    indices.reserve(vertex_count.length());
 
-    for(auto poly_index = 0_i; poly_index<num_polygons; ++poly_index)
-    {
-        if(mesh.polygonVertexCount(static_cast<int>(poly_index)) >= 5)
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(vertex_count.length())),
+        [&] (const tbb::blocked_range<size_t>& r)
         {
-            indices.push_back(poly_index);
-        }
-    }
+            for(auto i = r.begin(); i<r.end(); ++i)
+            {
+                auto index = static_cast<unsigned int>(i);
+                if(vertex_count[index] >= 5)
+                {
+                    indices.push_back(i);
+                }
+            }
+    });
     return indices;
 }
 
@@ -217,15 +228,31 @@ IndexArray MeshChecker::FindZeroAreaFaces(const MFnMesh& mesh, double maxFaceAre
     IndexArray indices;
     indices.reserve(static_cast<size_t>(mesh.numPolygons()));
 
-    for (MItMeshPolygon poly_it(path); !poly_it.isDone(); poly_it.next())
-    {
-        double area;
-        poly_it.getArea(area);
-        if (area < maxFaceArea)
+    MItMeshPolygon poly_it(path);
+
+    bool isLocked = true;
+    int dummyIndex;
+
+    tbb::mutex countMutex;
+    countMutex.lock();
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numPolygons())),
+        [&] (const tbb::blocked_range<size_t>& r)
         {
-            indices.push_back(static_cast<Index>(poly_it.index()));
-        }
-    }
+            for(auto i = r.begin(); i<r.end(); ++i)
+            {
+                poly_it.setIndex(i, dummyIndex);
+                double area;
+                poly_it.getArea(area, MSpace::kWorld);
+                if (area < maxFaceArea)
+                {
+                    indices.push_back(i);
+                }
+                if (isLocked) {
+                    countMutex.unlock();
+                    isLocked = false;
+                }
+            }
+    });
     return indices;
 }
 
