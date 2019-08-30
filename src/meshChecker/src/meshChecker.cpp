@@ -122,9 +122,7 @@ IndexArray MeshChecker::FindTriangles(const MFnMesh& mesh)
     mesh.getVertices(vertex_count, vertex_list);
 
     tbb::concurrent_vector<unsigned int> con_vector_int;
-
-    IndexArray indices;
-    indices.reserve(vertex_count.length());
+    con_vector_int.reserve(static_cast<size_t>(vertex_count.length()));
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(vertex_count.length())),
         [&] (const tbb::blocked_range<size_t>& r)
@@ -138,11 +136,7 @@ IndexArray MeshChecker::FindTriangles(const MFnMesh& mesh)
                 }
             }
     });
-    for(auto i = 0; i<con_vector_int.size(); ++i)
-    {
-        indices.push_back(con_vector_int[i]);
-    }
-    return indices;
+    return {con_vector_int.begin(), con_vector_int.end()};
 }
 
 IndexArray MeshChecker::FindNGons(const MFnMesh& mesh)
@@ -151,9 +145,7 @@ IndexArray MeshChecker::FindNGons(const MFnMesh& mesh)
     mesh.getVertices(vertex_count, vertex_list);
 
     tbb::concurrent_vector<unsigned int> con_vector_int;
-
-    IndexArray indices;
-    indices.reserve(vertex_count.length());
+    con_vector_int.reserve(static_cast<size_t>(vertex_count.length()));
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(vertex_count.length())),
         [&] (const tbb::blocked_range<size_t>& r)
@@ -167,11 +159,7 @@ IndexArray MeshChecker::FindNGons(const MFnMesh& mesh)
                 }
             }
     });
-    for(auto i = 0; i<con_vector_int.size(); ++i)
-    {
-        indices.push_back(con_vector_int[i]);
-    }
-    return indices;
+    return {con_vector_int.begin(), con_vector_int.end()};
 }
 
 IndexArray MeshChecker::FindNonManifoldEdges(const MFnMesh& mesh)
@@ -239,9 +227,8 @@ IndexArray MeshChecker::FindZeroAreaFaces(const MFnMesh& mesh, double maxFaceAre
     MDagPath path;
     mesh.getPath(path);
 
-    IndexArray indices;
-    indices.reserve(static_cast<size_t>(mesh.numPolygons()));
     tbb::concurrent_vector<unsigned int> con_vector_int;
+    con_vector_int.reserve(static_cast<size_t>(mesh.numPolygons()));
     tbb::mutex countMutex;
 
     double dummy_area;
@@ -250,9 +237,12 @@ IndexArray MeshChecker::FindZeroAreaFaces(const MFnMesh& mesh, double maxFaceAre
     tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numPolygons()), 10000),
         [&] (const tbb::blocked_range<size_t>& r)
         {
-            bool isLocked = true;
             countMutex.lock();
             MItMeshPolygon poly_it(path);
+            poly_it.setIndex(0, dummyIndex);
+            double dummy_area;
+            poly_it.getArea(dummy_area, MSpace::kWorld);
+            countMutex.unlock();
             for(auto i = r.begin(); i<r.end(); ++i)
             {
                 auto index = static_cast<unsigned int>(i);
@@ -263,18 +253,9 @@ IndexArray MeshChecker::FindZeroAreaFaces(const MFnMesh& mesh, double maxFaceAre
                 {
                     con_vector_int.push_back(index);
                 }
-                if (isLocked)
-                {
-                    countMutex.unlock();
-                    isLocked = false;
-                }
             }
     });
-    for(auto i = 0; i<con_vector_int.size(); ++i)
-    {
-        indices.push_back(con_vector_int[i]);
-    }
-    return indices;
+    return {con_vector_int.begin(), con_vector_int.end()};
 }
 
 IndexArray MeshChecker::FindMeshBorderEdges(const MFnMesh& mesh)
@@ -321,19 +302,35 @@ IndexArray MeshChecker::FindZeroLengthEdges(const MFnMesh& mesh, double minEdgeL
     MDagPath path;
     mesh.getPath(path);
 
-    IndexArray indices;
-    indices.reserve(static_cast<size_t>(mesh.numEdges()));
+    tbb::concurrent_vector<unsigned int> con_vector_int;
+    con_vector_int.reserve(static_cast<size_t>(mesh.numEdges()));
+    tbb::mutex countMutex;
 
-    for (MItMeshEdge edge_it(path); !edge_it.isDone(); edge_it.next())
-    {
-        double length;
-        edge_it.getLength(length);
-        if (length < minEdgeLength)
+    double dummy_area;
+    int dummyIndex;
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(mesh.numEdges()), 40000),
+        [&] (const tbb::blocked_range<size_t>& r)
         {
-            indices.push_back(static_cast<Index>(edge_it.index()));
-        }
-    }
-    return indices;
+            countMutex.lock();
+            MItMeshEdge edge_it(path);
+            edge_it.setIndex(0, dummyIndex);
+            double dummy_length;
+            edge_it.getLength(dummy_length);
+            countMutex.unlock();
+            for(auto i = r.begin(); i<r.end(); ++i)
+            {
+                auto index = static_cast<unsigned int>(i);
+                edge_it.setIndex(index, dummyIndex);
+                double length;
+                edge_it.getLength(length);
+                if (length < minEdgeLength)
+                {
+                    con_vector_int.push_back(index);
+                }
+            }
+    });
+    return {con_vector_int.begin(), con_vector_int.end()};
 }
 
 IndexArray MeshChecker::FindUnfrozenVertices(const MFnMesh& mesh)
