@@ -22,8 +22,6 @@
 #include <maya/MPointArray.h>
 #include <maya/MMeshIntersector.h>
 
-#include <tbb/concurrent_vector.h>
-#include <tbb/mutex.h>
 #include <tbb/tbb.h>
 
 #include <limits>
