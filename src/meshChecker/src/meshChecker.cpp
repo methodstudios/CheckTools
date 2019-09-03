@@ -114,50 +114,48 @@ MeshChecker::MeshChecker()
 {
 }
 
+
 IndexArray MeshChecker::FindTriangles(const MFnMesh& mesh)
 {
     MIntArray vertex_count, vertex_list;
     mesh.getVertices(vertex_count, vertex_list);
 
-    tbb::concurrent_vector<unsigned int> con_vector_int;
-    con_vector_int.reserve(static_cast<size_t>(vertex_count.length()));
+    IndexArray indices;
+    indices.reserve(static_cast<size_t>(vertex_count.length()));
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(vertex_count.length())),
-        [&] (const tbb::blocked_range<size_t>& r)
+    for(auto i = 0_i; i<vertex_count.length(); ++i)
+    {
+        auto index = static_cast<unsigned int>(i);
+
+        if (vertex_count[index] == 3)
         {
-            for(auto i = r.begin(); i<r.end(); ++i)
-            {
-                auto index = static_cast<unsigned int>(i);
-                if(vertex_count[index] == 3)
-                {
-                    con_vector_int.push_back(i);
-                }
-            }
-    });
-    return {con_vector_int.begin(), con_vector_int.end()};
+            indices.push_back(static_cast<Index>(index));
+        }
+    }
+
+    return indices;
 }
+
 
 IndexArray MeshChecker::FindNGons(const MFnMesh& mesh)
 {
     MIntArray vertex_count, vertex_list;
     mesh.getVertices(vertex_count, vertex_list);
 
-    tbb::concurrent_vector<unsigned int> con_vector_int;
-    con_vector_int.reserve(static_cast<size_t>(vertex_count.length()));
+    IndexArray indices;
+    indices.reserve(static_cast<size_t>(vertex_count.length()));
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(vertex_count.length())),
-        [&] (const tbb::blocked_range<size_t>& r)
+    for(auto i = 0_i; i<vertex_count.length(); ++i)
+    {
+        auto index = static_cast<unsigned int>(i);
+
+        if (vertex_count[index] >= 5)
         {
-            for(auto i = r.begin(); i<r.end(); ++i)
-            {
-                auto index = static_cast<unsigned int>(i);
-                if(vertex_count[index] >= 5)
-                {
-                    con_vector_int.push_back(i);
-                }
-            }
-    });
-    return {con_vector_int.begin(), con_vector_int.end()};
+            indices.push_back(static_cast<Index>(index));
+        }
+    }
+
+    return indices;
 }
 
 IndexArray MeshChecker::FindNonManifoldEdges(const MFnMesh& mesh)
