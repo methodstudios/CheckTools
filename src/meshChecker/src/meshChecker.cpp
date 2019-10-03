@@ -624,7 +624,7 @@ MStatus MeshChecker::doIt(const MArgList &args)
         else if(check_type == MeshCheckType::OVERLAPPING_VERTICES)
         {
             auto indices = FindOverlappingVertices(mesh); // self intersection
-            setResult(create_result_string(path, indices, ComponentType::Face));
+            setResult(create_result_string(path, indices, ComponentType::Vertex));
         }
         else
         {
