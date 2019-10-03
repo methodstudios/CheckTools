@@ -57,6 +57,7 @@ enum class MeshCheckType
     ZERO_LENGTH_EDGES,
     UNFROZEN_VERTICES,
     OVERLAPPING_FACES,
+    OVERLAPPING_VERTICES,
     UNDEFINED // keep last
 };
 
@@ -434,6 +435,35 @@ IndexArray MeshChecker::FindOverlappingFaces(const MFnMesh& mesh)
     return index_array;
 }
 
+IndexArray MeshChecker::FindOverlappingVertices(const MFnMesh& mesh)
+{
+    MStatus status = MS::kSuccess;
+    const float* mayaRawPoints = mesh.getRawPoints(&status);
+    const int numVertices = mesh.numVertices();
+
+    IndexArray index_array;
+    index_array.reserve(static_cast<size_t>(numVertices));
+
+    using Vector4 = std::array<long long, 3>;
+
+    std::set<Vector4> vertice_set;
+
+    for (size_t vert_id{}, prev_length{}; vert_id < numVertices; ++vert_id) {
+        const int floatIndex = vert_id * 3;
+        auto x = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex] * 100000);
+        auto y = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 1] * 100000);
+        auto z = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 2] * 100000);
+        auto local = Vector4{x,y,z};
+        vertice_set.insert(local);
+        if (prev_length == vertice_set.size())
+        {
+            index_array.push_back(static_cast<Index>(vert_id));
+        }
+        prev_length = static_cast<int>(vertice_set.size());
+    }
+    return index_array;
+}
+
 bool MeshChecker::HasVertexPntsAttr(const MFnMesh& mesh, bool fix)
 {
     MDagPath path;
@@ -589,6 +619,11 @@ MStatus MeshChecker::doIt(const MArgList &args)
         else if(check_type == MeshCheckType::OVERLAPPING_FACES)
         {
             auto indices = FindOverlappingFaces(mesh); // self intersection
+            setResult(create_result_string(path, indices, ComponentType::Face));
+        }
+        else if(check_type == MeshCheckType::OVERLAPPING_VERTICES)
+        {
+            auto indices = FindOverlappingVertices(mesh); // self intersection
             setResult(create_result_string(path, indices, ComponentType::Face));
         }
         else
