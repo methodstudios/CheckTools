@@ -457,7 +457,7 @@ IndexArray MeshChecker::FindOverlappingVertices(const MFnMesh& mesh)
                 auto y = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 1] * 100000);
                 auto z = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 2] * 100000);
                 auto local = Vector4{x,y,z};
-                auto iter_pair = dup.insert(std::make_pair(local, vert_id));
+                auto iter_pair = dup.emplace(local, vert_id);
                 if (!iter_pair.second){
                     vertice_set.insert(iter_pair.first->second);
                     vertice_set.insert(vert_id);
