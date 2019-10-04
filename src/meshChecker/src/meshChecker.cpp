@@ -31,8 +31,6 @@
 #include <algorithm>
 #include <string>
 
-#include <unordered_set>
-#include <unordered_map>
 #include <boost/functional/hash.hpp>
 
 namespace
