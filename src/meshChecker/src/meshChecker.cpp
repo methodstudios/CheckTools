@@ -446,22 +446,26 @@ IndexArray MeshChecker::FindOverlappingVertices(const MFnMesh& mesh)
     const int numVertices = mesh.numVertices();
 
     using Vector4 = std::array<long long, 3>;
-    std::unordered_set<int> vertice_set;
-    std::unordered_map<Vector4, int, boost::hash<Vector4>> dup;
+    tbb::concurrent_unordered_set<int> vertice_set;
+    tbb::concurrent_unordered_map<Vector4, int, boost::hash<Vector4>> dup;
 
-    for (size_t vert_id{}, prev_length{}; vert_id < numVertices; ++vert_id)
-    {
-        const int floatIndex = vert_id * 3;
-        auto x = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex] * 100000);
-        auto y = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 1] * 100000);
-        auto z = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 2] * 100000);
-        auto local = Vector4{x,y,z};
-        auto iter_pair = dup.insert(std::make_pair(local, vert_id));
-        if (!iter_pair.second){
-            vertice_set.insert(iter_pair.first->second);
-            vertice_set.insert(vert_id);
-        }
-    }
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(numVertices), 50000),
+        [&] (const tbb::blocked_range<size_t>& r)
+        {
+            for(size_t vert_id = r.begin(); vert_id<r.end(); ++vert_id)
+            {
+                const int floatIndex = vert_id * 3;
+                auto x = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex] * 100000);
+                auto y = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 1] * 100000);
+                auto z = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 2] * 100000);
+                auto local = Vector4{x,y,z};
+                auto iter_pair = dup.insert(std::make_pair(local, vert_id));
+                if (!iter_pair.second){
+                    vertice_set.insert(iter_pair.first->second);
+                    vertice_set.insert(vert_id);
+                }
+            }
+        });
     return {vertice_set.begin(), vertice_set.end()};
 }
 
