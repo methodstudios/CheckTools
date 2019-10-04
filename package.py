@@ -21,6 +21,7 @@ requires = [
 ]
 
 private_build_requires = [
+    'boost',
     'cmake-3.12',
     'git-2',
     'gcc-4',

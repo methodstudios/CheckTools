@@ -31,6 +31,10 @@
 #include <algorithm>
 #include <string>
 
+#include <unordered_set>
+#include <unordered_map>
+#include <boost/functional/hash.hpp>
+
 namespace
 {
 
@@ -441,27 +445,24 @@ IndexArray MeshChecker::FindOverlappingVertices(const MFnMesh& mesh)
     const float* mayaRawPoints = mesh.getRawPoints(&status);
     const int numVertices = mesh.numVertices();
 
-    IndexArray index_array;
-    index_array.reserve(static_cast<size_t>(numVertices));
-
     using Vector4 = std::array<long long, 3>;
+    std::unordered_set<int> vertice_set;
+    std::unordered_map<Vector4, int, boost::hash<Vector4>> dup;
 
-    std::set<Vector4> vertice_set;
-
-    for (size_t vert_id{}, prev_length{}; vert_id < numVertices; ++vert_id) {
+    for (size_t vert_id{}, prev_length{}; vert_id < numVertices; ++vert_id)
+    {
         const int floatIndex = vert_id * 3;
         auto x = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex] * 100000);
         auto y = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 1] * 100000);
         auto z = static_cast<const Vector4::value_type>(mayaRawPoints[floatIndex + 2] * 100000);
         auto local = Vector4{x,y,z};
-        vertice_set.insert(local);
-        if (prev_length == vertice_set.size())
-        {
-            index_array.push_back(static_cast<Index>(vert_id));
+        auto iter_pair = dup.insert(std::make_pair(local, vert_id));
+        if (!iter_pair.second){
+            vertice_set.insert(iter_pair.first->second);
+            vertice_set.insert(vert_id);
         }
-        prev_length = static_cast<int>(vertice_set.size());
     }
-    return index_array;
+    return {vertice_set.begin(), vertice_set.end()};
 }
 
 bool MeshChecker::HasVertexPntsAttr(const MFnMesh& mesh, bool fix)
