@@ -36,6 +36,7 @@ public:
     static IndexArray FindZeroLengthEdges(const MFnMesh &mesh, double minEdgeLength);
     static IndexArray FindUnfrozenVertices(const MFnMesh &mesh);
     static IndexArray FindOverlappingFaces(const MFnMesh &mesh);
+    static IndexArray FindOverlappingVertices(const MFnMesh &mesh);
     static bool HasVertexPntsAttr(const MFnMesh& mesh, bool fix);
 
 private:

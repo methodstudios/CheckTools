@@ -1,6 +1,6 @@
 name = "CheckTools"
 
-version = "1.1.4"
+version = "1.2.0"
 
 authors = [
     "github.com/minoue",
@@ -21,6 +21,7 @@ requires = [
 ]
 
 private_build_requires = [
+    'boost',
     'cmake-3.12',
     'git-2',
     'gcc-4',
