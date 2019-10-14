@@ -15,6 +15,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <tbb/tbb.h>
 
 UvChecker::UvChecker()
 {
@@ -136,6 +137,12 @@ MStatus UvChecker::redoIt()
         status = findNegativeSpaceUVs();
         CHECK_MSTATUS_AND_RETURN_IT(status);
         break;
+    case UvChecker::FLIPPED_UVS:
+        if (verbose)
+            MGlobal::displayInfo("Checking flipped UVs");
+        status = findFlippedUVs();
+        CHECK_MSTATUS_AND_RETURN_IT(status);
+        break;
     default:
         MGlobal::displayError("Invalid check number");
         return MS::kFailure;
@@ -236,6 +243,35 @@ MStatus UvChecker::findNoUvFaces()
     }
     MPxCommand::setResult(resultArray);
     return MS::kSuccess;
+}
+
+MStatus UvChecker::findFlippedUVs()
+{
+    #if MAYA_API_VERSION < 201800
+        MGlobal::displayError("isPolygonUVReversed doesn't exist for Maya <2018. Skipped.");
+        return MS::kSuccess;
+    #else
+        MFnMesh fnMesh(mDagPath);
+        MString fullname = mDagPath.fullPathName();
+        std::string fullname_str = fullname.asChar();
+        tbb::concurrent_vector<MString> con_vector_str;
+        con_vector_str.reserve(static_cast<size_t>(fnMesh.numPolygons()));
+
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, static_cast<size_t>(fnMesh.numPolygons()), 500000),
+            [&] (const tbb::blocked_range<size_t>& r)
+        {
+            for(auto i = r.begin(); i<r.end(); ++i)
+            {
+                if (fnMesh.isPolygonUVReversed(i, &uvSet)){
+                    std::string s = std::to_string(i);
+                    std::string result_str = fullname_str + ".f[" + s + "]";
+                    con_vector_str.push_back(result_str.c_str());
+                }
+            }
+        });
+        MPxCommand::setResult({&con_vector_str[0], static_cast<unsigned int>(con_vector_str.size())});
+        return MS::kSuccess;
+    #endif
 }
 
 MStatus UvChecker::findZeroUvFaces()
