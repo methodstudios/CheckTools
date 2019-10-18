@@ -22,13 +22,15 @@ public:
     MStatus findZeroUvFaces();
     bool hasUnassignedUVs();
     MStatus findNegativeSpaceUVs();
+    MStatus findFlippedUVs();
 
     enum Check {
         UDIM,
         HAS_UVS,
         ZERO_AREA,
         UN_ASSIGNED_UVS,
-        NEGATIVE_SPACE_UVS
+        NEGATIVE_SPACE_UVS,
+        FLIPPED_UVS,
     };
 
 private:
